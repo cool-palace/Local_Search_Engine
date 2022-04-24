@@ -63,8 +63,7 @@ vector<string> ConverterJSON::get_text_documents() {
 }
 
 int ConverterJSON::get_responses_limit() {
-    auto config = get_config();
-    return config["config"]["max_responses"];
+    return get_config()["config"]["max_responses"];
 }
 
 vector<string> ConverterJSON::get_requests() {
@@ -77,6 +76,18 @@ vector<string> ConverterJSON::get_requests() {
     request_file.close();
     return request["requests"];
 }
+
+//void ConverterJSON::put_answers(const vector<vector<pair<int, float>>>& answers) {
+////    if (answers.empty()) return;
+//    std::ofstream answer_file("answers.json", std::ofstream::trunc);
+//    nlohmann::json json;
+//
+//    for (int i = 1; i <= answers.size(); ++i) {
+//        json += {"request" + std::to_string(i), 2};
+//    }
+//    answer_file << json;
+//    answer_file.close();
+//}
 
 
 #endif //SEARCH_ENGINE_CONVERTER_H
