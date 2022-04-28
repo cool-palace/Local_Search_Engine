@@ -77,17 +77,28 @@ vector<string> ConverterJSON::get_requests() {
     return request["requests"];
 }
 
-//void ConverterJSON::put_answers(const vector<vector<pair<int, float>>>& answers) {
-////    if (answers.empty()) return;
-//    std::ofstream answer_file("answers.json", std::ofstream::trunc);
-//    nlohmann::json json;
-//
-//    for (int i = 1; i <= answers.size(); ++i) {
-//        json += {"request" + std::to_string(i), 2};
-//    }
-//    answer_file << json;
-//    answer_file.close();
-//}
+void ConverterJSON::put_answers(const vector<vector<pair<int, float>>>& answers) {
+    if (answers.empty()) return;
+    nlohmann::json j;
+    for (int i = 0, requests_count = answers.size(); i < requests_count; ++i) {
+        auto number = std::to_string(i + 1);
+        while (number.size() < 3) {
+            number = "0" + number;
+        }
 
+        j["answers"]["request" + number] = {{"result", !answers[i].empty()}};
+
+        if (answers[i].empty()) continue;
+        if (answers[i].size() == 1) {
+            j["answers"]["request" + number]["docid"] = answers[i].back().first;
+            j["answers"]["request" + number]["rank"] = answers[i].back().second;
+        } else for (const auto& pair : answers[i]) {
+            j["answers"]["request" + number]["relevance"] += {{"docid", pair.first}, {"rank", pair.second}};
+        }
+    }
+    std::ofstream answer_file("answers.json", std::ofstream::trunc);
+    answer_file << j;
+    answer_file.close();
+}
 
 #endif //SEARCH_ENGINE_CONVERTER_H
