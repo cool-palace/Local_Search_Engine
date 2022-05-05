@@ -1,6 +1,6 @@
 #include "search_server.h"
 
-std::set<std::string> SearchServer::query_words(const std::string& query) {
+std::set<std::string> Search_Server::query_words(const std::string& query) {
     std::set<std::string> unique_words;
     std::istringstream ss(query);
     std::string word;
@@ -10,7 +10,7 @@ std::set<std::string> SearchServer::query_words(const std::string& query) {
     return unique_words;
 }
 
-std::multimap<int, std::string> SearchServer::words_by_rareness(const std::set<std::string>& words) {
+std::multimap<int, std::string> Search_Server::words_by_rareness(const std::set<std::string>& words) {
     std::multimap<int, std::string> sorted_words;
     for (const auto& word : words) {
         int count = 0;
@@ -22,33 +22,43 @@ std::multimap<int, std::string> SearchServer::words_by_rareness(const std::set<s
     return sorted_words;
 }
 
-std::set<size_t> SearchServer::found_ids(std::multimap<int, std::string> sorted_words) {
+std::set<size_t> Search_Server::exclusive_ids(std::multimap<int, std::string> sorted_words) {
     std::set<size_t> doc_ids;
     for (auto it = sorted_words.begin(); it != sorted_words.end(); ++it) {
         auto word = (*it).second;
+        std::cout << word << '\n';
+        std::set<size_t> narrowed_ids;
         for (const auto& entry : _index.get_word_count(word)) {
             if (it == sorted_words.begin()) {
                 doc_ids.insert(entry.doc_id);
-            } else {
-                std::set<size_t> narrowed_ids;
-                for (const auto& entry : _index.get_word_count(word)) {
-                    if (doc_ids.count(entry.doc_id)) {
-                        narrowed_ids.insert(entry.doc_id);
-                    }
-                }
-                std::swap(doc_ids, narrowed_ids);
+            } else if (doc_ids.count(entry.doc_id)) {
+                narrowed_ids.insert(entry.doc_id);
             }
+        }
+        if (it != sorted_words.begin()) {
+            std::swap(doc_ids, narrowed_ids);
         }
         if (doc_ids.empty()) break;
     }
     return doc_ids;
 }
 
-std::vector<RelativeIndex> SearchServer::relevance_map(const std::set<size_t>& docs,
-                                                       const std::set<std::string>& unique_words) {
-    if (docs.empty()) return std::vector<RelativeIndex>();
+std::set<size_t> Search_Server::found_ids(std::multimap<int, std::string> sorted_words) {
+    std::set<size_t> doc_ids;
+    for (auto it = sorted_words.begin(); it != sorted_words.end(); ++it) {
+        auto word = (*it).second;
+        for (const auto& entry : _index.get_word_count(word)) {
+            doc_ids.insert(entry.doc_id);
+        }
+    }
+    return doc_ids;
+}
 
-    std::map<int, size_t, std::greater<>> abs_relevance;
+std::vector<Relative_Index> Search_Server::relevance_map(const std::set<size_t>& docs,
+                                                         const std::set<std::string>& unique_words) {
+    if (docs.empty()) return std::vector<Relative_Index>();
+
+    std::multimap<int, size_t, std::greater<>> abs_relevance;
     for (auto doc_id : docs) {
         int frequency = 0;
         for (const auto& word : unique_words) {
@@ -58,20 +68,20 @@ std::vector<RelativeIndex> SearchServer::relevance_map(const std::set<size_t>& d
                 }
             }
         }
-        abs_relevance[frequency] = doc_id;
+        abs_relevance.insert({frequency, doc_id});
     }
 
     int max = abs_relevance.begin()->first;
-    std::vector<RelativeIndex> relevance;
+    std::vector<Relative_Index> relevance;
     for (auto it = abs_relevance.begin(); it != abs_relevance.end(); ++it) {
         float rank = static_cast<float>(it->first) / max;
         relevance.push_back({it->second, rank});
     }
     return relevance;
-};
+}
 
-std::vector<std::vector<RelativeIndex>> SearchServer::search(const std::vector<std::string> &queries_input) {
-    std::vector<std::vector<RelativeIndex>> search_result;
+std::vector<std::vector<Relative_Index>> Search_Server::search(const std::vector<std::string> &queries_input) {
+    std::vector<std::vector<Relative_Index>> search_result;
     for (size_t i = 0; i < queries_input.size(); ++i) {
         auto unique_words = query_words(queries_input[i]);
         auto sorted_words = words_by_rareness(unique_words);

@@ -11,11 +11,14 @@ struct Entry {
     bool operator==(const Entry& other) const {
         return (doc_id == other.doc_id && count == other.count);
     }
+    bool operator<(const Entry& other) const {
+        return (doc_id < other.doc_id);
+    }
 };
 
-class InvertedIndex {
+class Inverted_Index {
 public:
-    InvertedIndex() = default;
+    Inverted_Index() = default;
     void update_document_base(const std::vector<std::string>& input_docs);
     std::vector<Entry> get_word_count(const std::string& word);
 
