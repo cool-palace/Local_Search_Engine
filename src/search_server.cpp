@@ -1,4 +1,4 @@
-#include "search_server.h"
+#include "../include/search_server.h"
 
 std::set<std::string> Search_Server::query_words(const std::string& query) {
     std::set<std::string> unique_words;

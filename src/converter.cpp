@@ -1,7 +1,7 @@
-#include "converter.h"
+#include "../include/converter.h"
 
 nlohmann::json Converter_JSON::get_config() {
-    ifstream config_file("config.json", ifstream::in);
+    std::ifstream config_file("config.json", std::ifstream::in);
     nlohmann::json config;
     if (!config_file.is_open()) {
         throw bad_config();
@@ -11,18 +11,18 @@ nlohmann::json Converter_JSON::get_config() {
     return config;
 }
 
-vector<string> Converter_JSON::get_text_documents() {
-    vector<string> words;
+std::vector<std::string> Converter_JSON::get_text_documents() {
+    std::vector<std::string> words;
     auto config = get_config();
     auto files = config["files"];
 
     for (const auto& path : files) {
-        ifstream file(path, ifstream::in);
+        std::ifstream file(path, std::ifstream::in);
         if (!file.is_open()) {
             continue;
         }
-        string s;
-        getline(file, s);
+        std::string s;
+        std::getline(file, s);
         words.push_back(s);
         file.close();
     }
@@ -33,18 +33,18 @@ int Converter_JSON::get_responses_limit() {
     return get_config()["config"]["max_responses"];
 }
 
-vector<string> Converter_JSON::get_requests() {
-    ifstream request_file("requests.json", ifstream::in);
+std::vector<std::string> Converter_JSON::get_requests() {
+    std::ifstream request_file("requests.json", std::ifstream::in);
     nlohmann::json request;
     if (!request_file.is_open()) {
-        return vector<string>();
+        return std::vector<std::string>();
     }
     request_file >> request;
     request_file.close();
     return request["requests"];
 }
 
-void Converter_JSON::put_answers(const vector<vector<Relative_Index>>& answers) {
+void Converter_JSON::put_answers(const std::vector<std::vector<Relative_Index>>& answers) {
     if (answers.empty()) return;
     nlohmann::json json;
     int max_responses_limit = get_responses_limit();
@@ -60,9 +60,9 @@ void Converter_JSON::put_answers(const vector<vector<Relative_Index>>& answers) 
         if (answers[i].size() == 1) {
             json["answers"]["request" + number]["docid"] = answers[i].back().doc_id;
             json["answers"]["request" + number]["rank"] = answers[i].back().rank;
-        } else for (int j = 0; j < answers[i].size() && j < 5; ++j) {
+        } else for (int j = 0; j < answers[i].size() && j < max_responses_limit; ++j) {
                 json["answers"]["request" + number]["relevance"] += {{"docid", answers[i][j].doc_id}, {"rank", answers[i][j].rank}};
-            }
+        }
     }
     std::ofstream answer_file("answers.json", std::ofstream::trunc);
     answer_file << json;
