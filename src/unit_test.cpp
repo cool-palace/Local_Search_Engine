@@ -1,7 +1,5 @@
 #include "gtest/gtest.h"
 #include "../include/converter.h"
-#include "../include/inverted_index.h"
-#include "../include/search_server.h"
 using namespace std;
 
 void test_inverted_index_functionality (const vector<string>& docs,

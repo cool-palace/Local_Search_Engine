@@ -1,4 +1,7 @@
 #include "../include/converter.h"
+#include <mutex>
+#include <thread>
+#include <queue>
 
 nlohmann::json Converter_JSON::get_config() {
     std::ifstream config_file("config.json", std::ifstream::in);
@@ -13,19 +16,41 @@ nlohmann::json Converter_JSON::get_config() {
 
 std::vector<std::string> Converter_JSON::get_text_documents() {
     std::vector<std::string> words;
-    auto config = get_config();
-    auto files = config["files"];
+    words.reserve(1000);
+    std::mutex words_mutex;
+    std::mutex files_mutex;
 
-    for (const auto& path : files) {
+    auto get_text = [&words, &words_mutex, &files_mutex](std::queue<std::string>& files) {
+        files_mutex.lock();
+        auto path = files.front();
+        files.pop();
+        files_mutex.unlock();
+
         std::ifstream file(path, std::ifstream::in);
-        if (!file.is_open()) {
-            continue;
-        }
+        if (!file.is_open()) return;
+
         std::string s;
         std::getline(file, s);
-        words.push_back(s);
         file.close();
+
+        std::lock_guard<std::mutex> guard(words_mutex);
+        words.push_back(s);
+    };
+
+    auto config = get_config();
+
+    std::queue<std::string> files;
+    for (const auto& file : config["files"]) {
+        files.push(file);
     }
+
+    std::vector<std::thread> threads;
+
+    while (!files.empty()) {
+        std::thread t(get_text, std::ref(files));
+        t.join();
+    }
+
     return words;
 }
 
@@ -61,7 +86,8 @@ void Converter_JSON::put_answers(const std::vector<std::vector<Relative_Index>>&
             json["answers"]["request" + number]["docid"] = answers[i].back().doc_id;
             json["answers"]["request" + number]["rank"] = answers[i].back().rank;
         } else for (int j = 0; j < answers[i].size() && j < max_responses_limit; ++j) {
-                json["answers"]["request" + number]["relevance"] += {{"docid", answers[i][j].doc_id}, {"rank", answers[i][j].rank}};
+            json["answers"]["request" + number]["relevance"] += {{"docid", answers[i][j].doc_id},
+                                                                 {"rank", answers[i][j].rank}};
         }
     }
     std::ofstream answer_file("answers.json", std::ofstream::trunc);
