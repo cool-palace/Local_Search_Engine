@@ -2,6 +2,7 @@
 #include <mutex>
 #include <thread>
 #include <queue>
+#include "../CTPL/ctpl_stl.h"
 
 nlohmann::json Converter_JSON::get_config() {
     std::ifstream config_file("config.json", std::ifstream::in);
@@ -15,42 +16,33 @@ nlohmann::json Converter_JSON::get_config() {
 }
 
 std::vector<std::string> Converter_JSON::get_text_documents() {
-    std::vector<std::string> words;
-    words.reserve(1000);
-    std::mutex words_mutex;
-    std::mutex files_mutex;
-
-    auto get_text = [&words, &words_mutex, &files_mutex](std::queue<std::string>& files) {
-        files_mutex.lock();
-        auto path = files.front();
-        files.pop();
-        files_mutex.unlock();
-
-        std::ifstream file(path, std::ifstream::in);
-        if (!file.is_open()) return;
-
-        std::string s;
-        std::getline(file, s);
-        file.close();
-
-        std::lock_guard<std::mutex> guard(words_mutex);
-        words.push_back(s);
-    };
-
     auto config = get_config();
+    size_t files_count = config["files"].size();
 
-    std::queue<std::string> files;
+    std::vector<std::string> files;
     for (const auto& file : config["files"]) {
-        files.push(file);
+        files.push_back(file);
     }
 
-    std::vector<std::thread> threads;
+    std::vector<std::string> words;
+    words.resize(files_count);
 
-    while (!files.empty()) {
-        std::thread t(get_text, std::ref(files));
-        t.join();
+    size_t pool_size = std::thread::hardware_concurrency();
+    ctpl::thread_pool pool(pool_size);
+    std::vector<std::future<void>> results(files_count);
+
+    for (size_t index = 0; index < files_count; ++index) {
+        const auto path = files[index];
+        results[index] = pool.push([&words, &path, index](int) {
+            std::ifstream file(path, std::ifstream::in);
+            if (!file.is_open()) return;
+            std::getline(file, words[index]);
+            file.close();
+        });
     }
-
+    for (size_t index = 0; index < files_count; ++index) {
+        results[index].get();
+    }
     return words;
 }
 
