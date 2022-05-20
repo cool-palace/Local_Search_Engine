@@ -2,6 +2,7 @@
 #include <mutex>
 #include <thread>
 #include <queue>
+#include <functional>
 #include "../CTPL/ctpl_stl.h"
 
 nlohmann::json Converter_JSON::get_config() {
@@ -32,10 +33,13 @@ std::vector<std::string> Converter_JSON::get_text_documents() {
     std::vector<std::future<void>> results(files_count);
 
     for (size_t index = 0; index < files_count; ++index) {
-        const auto path = files[index];
+        auto path = files[index];
         results[index] = pool.push([&words, &path, index](int) {
             std::ifstream file(path, std::ifstream::in);
-            if (!file.is_open()) return;
+            if (!file.is_open()) {
+                std::cerr << "Failed to open file: " << path;
+                return;
+            }
             std::getline(file, words[index]);
             file.close();
         });
